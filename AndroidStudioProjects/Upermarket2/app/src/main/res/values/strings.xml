@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Upermarket</string>
+    <string name="upermarket_text" />
+    <string name="signature_text" />
+    <string name="happy_birthday_text" />
+    <string name="androidparty_png" />
+</resources>
