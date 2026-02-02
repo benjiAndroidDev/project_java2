@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+
 }
 
 android {
@@ -32,8 +34,10 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
 
+    //noinspection WrongGradleMethod
     configurations {
         all {
             exclude(group = "xmlpull", module = "xmlpull")
@@ -59,6 +63,29 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.foundation.layout)
+    implementation("com.google.firebase:firebase-ml-vision:24.0.3")
+    implementation("com.google.firebase:firebase-ml-vision-barcode-model:16.0.1")
+    // Networking
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    
+    // Serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // Image Loading
+    implementation(libs.coil.compose)
+    implementation(libs.material)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
+    implementation(libs.transport.runtime)
+    implementation(libs.androidx.material3)
+    implementation(libs.play.services.analytics.impl)
+    implementation(libs.androidx.compose.ui.text)
+    implementation(libs.androidx.camera.core)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
