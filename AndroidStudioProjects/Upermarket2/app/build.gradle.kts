@@ -63,8 +63,21 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.foundation.layout)
-    implementation("com.google.firebase:firebase-ml-vision:24.0.3")
-    implementation("com.google.firebase:firebase-ml-vision-barcode-model:16.0.1")
+    implementation ("com.google.mlkit:barcode-scanning:17.3.0")
+
+    //camera
+    implementation ("androidx.camera:camera-core:1.3.4")
+    implementation ("androidx.camera:camera-camera2:1.3.4")
+    implementation ("androidx.camera:camera-lifecycle:1.3.4")
+    implementation ("androidx.camera:camera-view:1.3.4")
+
+    //viewModel lifeCycle
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+
+
+    //json Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0")
+
     // Networking
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)
