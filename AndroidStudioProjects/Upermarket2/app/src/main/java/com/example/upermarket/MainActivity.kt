@@ -2,9 +2,16 @@ package com.example.upermarket
 
 import android.os.Bundle
 import android.util.Log
+import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -68,6 +75,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +84,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.compose.NavHost
@@ -82,10 +92,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.upermarket.ui.theme.UpermarketTheme
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 
 class MainActivity : ComponentActivity() {
@@ -93,6 +108,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            BarCodeAnalyzer(
+                viewModel = remember { BarcodeViewModel() }
+            )
             CameraPreview(
                 viewModel = remember { BarcodeViewModel() }
             )
@@ -481,10 +499,34 @@ class BarcodeViewModel : ViewModel() {
     }
 }
 
+class BarCodeAnalyzer(private val viewModel: BarcodeViewModel) : ImageAnalysis.Analyzer {
+    @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
+    override fun analyze(imageProxy: ImageProxy) {
+        val mediaImage = imageProxy.image
+        if (mediaImage != null) {
+            val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+            val scanner = BarcodeScanning.getClient()
 
+            scanner.process(image)
+                .addOnSuccessListener { barcodes ->
+                    if (barcodes.isNotEmpty()) {
+                        viewModel.onBarCodeDetected(barcodes)
+                    }
+                }
+                .addOnFailureListener {
+                    // Handle error
+                }
+                .addOnCompleteListener {
+                    imageProxy.close()
+                }
+        } else {
+            imageProxy.close()
+        }
+    }
+}
 
 @Composable
-fun CameraPreview(viewModel: BarCodeScannerViewModel) {
+fun CameraPreview(viewModel: BarcodeViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var preview by remember { mutableStateOf<Preview?>(null) }
@@ -544,7 +586,7 @@ fun CameraPreview(viewModel: BarCodeScannerViewModel) {
         }
 
         when (barScanState) {
-            is BarScanState.Ideal -> {
+            is BarScanState.Idea -> {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -594,7 +636,7 @@ fun CameraPreview(viewModel: BarCodeScannerViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("Error: ${(barScanState.error)}")
+                    Text("Error: ${(barScanState.errors)}")
                 }
             }
         }
