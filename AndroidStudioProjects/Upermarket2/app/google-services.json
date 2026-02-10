@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "609518440764",
+    "project_id": "upermarket-bf248",
+    "storage_bucket": "upermarket-bf248.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:609518440764:android:af8f6543c74eeeebb50e39",
+        "android_client_info": {
+          "package_name": "com.example.upermarket"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBpj5IejUah6MXxmp2w6dT_ZDDV6wn0e1k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
