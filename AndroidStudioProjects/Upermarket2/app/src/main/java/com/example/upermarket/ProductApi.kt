@@ -12,6 +12,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.http.Path
 import okhttp3.Interceptor
+import java.util.concurrent.TimeUnit
 
 @Serializable
 data class SearchResponse(
@@ -78,6 +79,9 @@ interface OpenFoodFactsApi {
             }
             
             val client = OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS) // Augmenté à 30s
+                .readTimeout(30, TimeUnit.SECONDS)    // Augmenté à 30s
+                .writeTimeout(30, TimeUnit.SECONDS)
                 .addInterceptor(logging)
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()

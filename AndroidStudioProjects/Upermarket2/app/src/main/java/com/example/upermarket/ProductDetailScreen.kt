@@ -82,16 +82,15 @@ fun ProductDetailScreen(
                     )
                     
                     // Badge source
-                    val isLocal = LocalProductDatabase.getProduct(product.code ?: "") != null
                     Surface(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(16.dp),
-                        color = if (isLocal) Color(0xFF4CAF50) else Color(0xFF2196F3),
+                        color = Color(0xFF2196F3),
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Text(
-                            if (isLocal) "🏠 LOCAL" else "🌐 API",
+                            "📦 Produit OFF",
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
@@ -389,14 +388,6 @@ fun ProductDetailScreen(
                                         textAlign = TextAlign.Center,
                                         maxLines = 2
                                     )
-                                    similarProduct.brands?.let { brand ->
-                                        Text(
-                                            brand,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color.Gray,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -439,6 +430,32 @@ fun ProductDetailScreen(
 }
 
 // Fonctions utilitaires
+fun nutriScoreColor(score: String): Color = when (score.lowercase()) {
+    "a" -> Color(0xFF038141)
+    "b" -> Color(0xFF85BB2F)
+    "c" -> Color(0xFFFECB02)
+    "d" -> Color(0xFFEE8100)
+    "e" -> Color(0xFFE63E11)
+    else -> Color.Gray
+}
+
+fun ecoScoreColor(score: String): Color = when (score.lowercase()) {
+    "a" -> Color(0xFF1E8F4E)
+    "b" -> Color(0xFF2ECC71)
+    "c" -> Color(0xFFF1C40F)
+    "d" -> Color(0xFFE67E22)
+    "e" -> Color(0xFFE74C3C)
+    else -> Color.Gray
+}
+
+fun novaColor(nova: Int): Color = when (nova) {
+    1 -> Color(0xFF038141)
+    2 -> Color(0xFF85BB2F)
+    3 -> Color(0xFFEE8100)
+    4 -> Color(0xFFE63E11)
+    else -> Color.Gray
+}
+
 fun getNutriScoreDescription(score: String): String = when (score.lowercase()) {
     "a" -> "Très bonne qualité nutritionnelle"
     "b" -> "Bonne qualité nutritionnelle"
@@ -467,30 +484,18 @@ fun getNovaDescription(nova: Int): String = when (nova) {
 
 fun generateSimilarProducts(product: Product): List<Product> {
     val similarProducts = mutableListOf<Product>()
-    
-    // Simulation de produits similaires basés sur la catégorie
     when {
         product.categories?.contains("Chocolats", ignoreCase = true) == true -> {
             similarProducts.addAll(listOf(
                 Product(code = "sim1", name = "Chocolat au lait", brands = "Milka", categories = "Chocolats"),
-                Product(code = "sim2", name = "Chocolat noir 70%", brands = "Lindt", categories = "Chocolats"),
-                Product(code = "sim3", name = "Chocolat blanc", brands = "Nestlé", categories = "Chocolats")
-            ))
-        }
-        product.categories?.contains("Fromages", ignoreCase = true) == true -> {
-            similarProducts.addAll(listOf(
-                Product(code = "sim4", name = "Camembert", brands = "Président", categories = "Fromages"),
-                Product(code = "sim5", name = "Brie", brands = "Lactalis", categories = "Fromages"),
-                Product(code = "sim6", name = "Roquefort", brands = "Société", categories = "Fromages")
+                Product(code = "sim2", name = "Chocolat noir 70%", brands = "Lindt", categories = "Chocolats")
             ))
         }
         else -> {
             similarProducts.addAll(listOf(
-                Product(code = "sim7", name = "Produit recommandé", brands = "Marque", categories = "Divers"),
-                Product(code = "sim8", name = "Alternative", brands = "Bio", categories = "Divers")
+                Product(code = "sim7", name = "Produit recommandé", brands = "Marque", categories = "Divers")
             ))
         }
     }
-    
     return similarProducts.take(3)
 }
