@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.*
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.text.TextStyle
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.*
 import androidx.navigation.compose.*
@@ -103,13 +104,13 @@ fun MainApp() {
 
 // ==================== VIEWMODELS ====================
 
-data class CartItem(val product: Product, val quantity: Int)
+data class CartItem(val product: Product, val quantity: Int, val price: Float)
 
 class CartViewModel : ViewModel() {
     private val _cartItems = mutableStateOf<List<CartItem>>(emptyList())
     val cartItems: List<CartItem> get() = _cartItems.value
     val itemCount: Int get() = _cartItems.value.sumOf { it.quantity }
-    val totalPrice: Float get() = _cartItems.value.sumOf { (it.quantity * 3.99).toDouble() }.toFloat()
+    val totalPrice: Float get() = _cartItems.value.sumOf { (it.quantity * it.price).toDouble() }.toFloat()
 
     fun addToCart(product: Product) {
         val id = product.code ?: "${product.name}_${product.brands}"
@@ -117,11 +118,33 @@ class CartViewModel : ViewModel() {
         if (existing != null) {
             _cartItems.value = _cartItems.value.map { if ((it.product.code ?: "${it.product.name}_${it.product.brands}") == id) it.copy(quantity = it.quantity + 1) else it }
         } else {
-            _cartItems.value = _cartItems.value + CartItem(product, 1)
+            _cartItems.value = _cartItems.value + CartItem(product, 1, getInitialPrice(product))
         }
     }
-    fun removeFromCart(product: Product) { val id = product.code ?: "${product.name}_${product.brands}"; _cartItems.value = _cartItems.value.filter { (it.product.code ?: "${it.product.name}_${it.product.brands}") != id } }
-    fun updateQuantity(product: Product, quantity: Int) { if (quantity <= 0) removeFromCart(product) else { val id = product.code ?: "${product.name}_${product.brands}"; _cartItems.value = _cartItems.value.map { if ((it.product.code ?: "${it.product.name}_${it.product.brands}") == id) it.copy(quantity = quantity) else it } } }
+    
+    private fun getInitialPrice(p: Product): Float {
+        val seed = p.code?.hashCode()?.toLong() ?: (p.name?.hashCode()?.toLong() ?: 123L)
+        val random = java.util.Random(seed)
+        return (random.nextInt(500) + 100) / 100f // Prix par défaut entre 1€ et 6€
+    }
+
+    fun updatePrice(product: Product, newPrice: Float) {
+        val id = product.code ?: "${product.name}_${product.brands}"
+        _cartItems.value = _cartItems.value.map { if ((it.product.code ?: "${it.product.name}_${it.product.brands}") == id) it.copy(price = newPrice) else it }
+    }
+
+    fun removeFromCart(product: Product) { 
+        val id = product.code ?: "${product.name}_${product.brands}"
+        _cartItems.value = _cartItems.value.filter { (it.product.code ?: "${it.product.name}_${it.product.brands}") != id } 
+    }
+    
+    fun updateQuantity(product: Product, quantity: Int) { 
+        if (quantity <= 0) removeFromCart(product) 
+        else { 
+            val id = product.code ?: "${product.name}_${product.brands}"
+            _cartItems.value = _cartItems.value.map { if ((it.product.code ?: "${it.product.name}_${it.product.brands}") == id) it.copy(quantity = quantity) else it } 
+        } 
+    }
     fun clearCart() { _cartItems.value = emptyList() }
 }
 
@@ -216,15 +239,15 @@ fun MainAppContent(authManager: AuthManager, cartViewModel: CartViewModel) {
         }
     ) { padding ->
         NavHost(navController, Destination.HOME.route, Modifier.padding(padding)) {
-            composable(Destination.HOME.route) { HomeScreen(favoritesViewModel) }
+            composable(Destination.HOME.route) { HomeScreen(favoritesViewModel, cartViewModel) }
             composable(Destination.SEARCH.route) { SearchScreen(favoritesViewModel, cartViewModel) }
             composable(Destination.SCAN.route) { ScanScreen(cartViewModel, favoritesViewModel) }
             composable(Destination.VIP.route) { VipScreen(authManager) }
             composable(Destination.SETTINGS.route) { SettingsScreen() }
         }
 
-        if (showCartSheet) ModalBottomSheet(onDismissRequest = { showCartSheet = false }) { CartSheet(cartViewModel) }
-        if (showFavoritesSheet) ModalBottomSheet(onDismissRequest = { showFavoritesSheet = false }) { FavoritesSheet(favoritesViewModel) }
+        if (showCartSheet) ModalBottomSheet(onDismissRequest = { showCartSheet = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) { CartSheet(cartViewModel, favoritesViewModel) }
+        if (showFavoritesSheet) ModalBottomSheet(onDismissRequest = { showFavoritesSheet = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) { FavoritesSheet(favoritesViewModel, cartViewModel) }
         if (showProfileSheet) ModalBottomSheet(onDismissRequest = { showProfileSheet = false }) { ProfileScreen(authManager, onVip = { showProfileSheet=false; selectedItem=3; navController.navigate(Destination.VIP.route) }, onDismiss = { showProfileSheet = false }) }
         if (showShoppingListSheet) ModalBottomSheet(onDismissRequest = { showShoppingListSheet = false }) { ShoppingListSheet { showShoppingListSheet = false } }
         if (showBudgetManagerSheet) ModalBottomSheet(onDismissRequest = { showBudgetManagerSheet = false }) { BudgetManagerSheet({showBudgetManagerSheet=false}, cartViewModel, context) }
@@ -234,9 +257,10 @@ fun MainAppContent(authManager: AuthManager, cartViewModel: CartViewModel) {
 // ==================== HOME SCREEN (RESTORED DESIGN) ====================
 
 @Composable
-fun HomeScreen(favoritesViewModel: FavoritesViewModel) {
+fun HomeScreen(favoritesViewModel: FavoritesViewModel, cartViewModel: CartViewModel) {
     val api = remember { OpenFoodFactsApi.create() }
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
+    var detailProduct by remember { mutableStateOf<Product?>(null) }
     LaunchedEffect(Unit) { try { products = api.searchProducts("").products.take(20) } catch (_: Exception) {} }
 
     val pagerState = rememberPagerState(pageCount = { 6 })
@@ -301,7 +325,7 @@ fun HomeScreen(favoritesViewModel: FavoritesViewModel) {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(horizontal = 16.dp)) {
             items(products) { product ->
                 var isFav by remember { mutableStateOf(favoritesViewModel.isFavorite(product)) }
-                Card(Modifier.width(140.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(Color.White)) {
+                Card(Modifier.width(140.dp).clickable { detailProduct = product }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(Color.White)) {
                     Column {
                         AsyncImage(product.imageUrl, null, Modifier.fillMaxWidth().height(140.dp), contentScale = ContentScale.Crop)
                         Text(product.name ?: "Produit", Modifier.padding(8.dp), fontWeight = FontWeight.Bold, maxLines = 2, fontSize = 14.sp)
@@ -313,6 +337,7 @@ fun HomeScreen(favoritesViewModel: FavoritesViewModel) {
             }
         }
     }
+    detailProduct?.let { ProductDetailScreen(product = it, onDismiss = { detailProduct = null }, favoritesViewModel = favoritesViewModel, cartViewModel = cartViewModel) }
 }
 
 data class CategoryData(val title: String, val subtitle: String, val imageUrl: String)
@@ -326,6 +351,7 @@ fun SearchScreen(favoritesViewModel: FavoritesViewModel, cartViewModel: CartView
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Product>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
+    var detailProduct by remember { mutableStateOf<Product?>(null) }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         OutlinedTextField(
@@ -351,7 +377,7 @@ fun SearchScreen(favoritesViewModel: FavoritesViewModel, cartViewModel: CartView
         
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(results) { product ->
-                Card(Modifier.fillMaxWidth().clickable { /* Détail */ }) {
+                Card(Modifier.fillMaxWidth().clickable { detailProduct = product }) {
                     Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(product.imageUrl, null, Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)))
                         Column(Modifier.padding(start = 12.dp).weight(1f)) {
@@ -364,6 +390,7 @@ fun SearchScreen(favoritesViewModel: FavoritesViewModel, cartViewModel: CartView
             }
         }
     }
+    detailProduct?.let { ProductDetailScreen(product = it, onDismiss = { detailProduct = null }, favoritesViewModel = favoritesViewModel, cartViewModel = cartViewModel) }
 }
 
 // ==================== SCANNER ULTRA-STABLE ====================
@@ -503,38 +530,81 @@ sealed interface BarScanState {
 // ==================== RESTORED MODAL SHEETS & UTILS ====================
 
 @Composable
-fun CartSheet(cartViewModel: CartViewModel) {
-    Column(Modifier.padding(24.dp).fillMaxWidth()) {
+fun CartSheet(cartViewModel: CartViewModel, favoritesViewModel: FavoritesViewModel) {
+    var detailProduct by remember { mutableStateOf<Product?>(null) }
+    Column(Modifier.padding(24.dp).fillMaxWidth().fillMaxHeight(0.9f)) {
         Text("Mon Panier", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        LazyColumn(Modifier.weight(1f, false)) {
+        Spacer(Modifier.height(16.dp))
+        LazyColumn(Modifier.weight(1f)) {
             items(cartViewModel.cartItems) { item ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AsyncImage(item.product.imageUrl, null, Modifier.size(50.dp).clip(RoundedCornerShape(8.dp)))
-                    Column(Modifier.padding(start = 12.dp).weight(1f)) { Text(item.product.name ?: "Produit", fontWeight = FontWeight.Bold); Text("${item.quantity} x 3.99€") }
-                    IconButton(onClick = { cartViewModel.removeFromCart(item.product) }) { Icon(Icons.Default.Delete, null, tint = Color.Red) }
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { detailProduct = item.product },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(item.product.imageUrl, null, Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)))
+                        Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                            Text(item.product.name ?: "Produit", fontWeight = FontWeight.Bold, maxLines = 1)
+                            var priceInput by remember { mutableStateOf(item.price.toString()) }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                BasicTextField(
+                                    value = priceInput,
+                                    onValueChange = { 
+                                        priceInput = it
+                                        it.replace(",", ".").toFloatOrNull()?.let { newPrice -> cartViewModel.updatePrice(item.product, newPrice) }
+                                    },
+                                    textStyle = TextStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    modifier = Modifier.width(60.dp)
+                                )
+                                Text(" €", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(Color(0xFFF5F5F5), CircleShape)) {
+                            IconButton(onClick = { cartViewModel.updateQuantity(item.product, item.quantity - 1) }, modifier = Modifier.size(32.dp)) { Icon(Icons.Rounded.Remove, null, Modifier.size(16.dp)) }
+                            Text("${item.quantity}", Modifier.padding(horizontal = 4.dp), fontWeight = FontWeight.Bold)
+                            IconButton(onClick = { cartViewModel.updateQuantity(item.product, item.quantity + 1) }, modifier = Modifier.size(32.dp)) { Icon(Icons.Rounded.Add, null, Modifier.size(16.dp)) }
+                        }
+                    }
                 }
             }
         }
-        Text("Total : ${String.format("%.2f", cartViewModel.totalPrice)} €", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+        Divider(Modifier.padding(vertical = 16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Total :", style = MaterialTheme.typography.titleLarge)
+            Text("${String.format("%.2f", cartViewModel.totalPrice)} €", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, color = Color(0xFF4CAF50))
+        }
+        Button(onClick = { /* Checkout */ }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(56.dp), shape = RoundedCornerShape(16.dp)) {
+            Text("Commander", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        }
     }
+    detailProduct?.let { ProductDetailScreen(product = it, onDismiss = { detailProduct = null }, favoritesViewModel = favoritesViewModel, cartViewModel = cartViewModel) }
 }
 
 @Composable
-fun FavoritesSheet(favoritesViewModel: FavoritesViewModel) {
-    Column(Modifier.padding(24.dp).fillMaxWidth()) {
+fun FavoritesSheet(favoritesViewModel: FavoritesViewModel, cartViewModel: CartViewModel) {
+    var detailProduct by remember { mutableStateOf<Product?>(null) }
+    Column(Modifier.padding(24.dp).fillMaxWidth().fillMaxHeight(0.9f)) {
         Text("Mes Favoris", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        LazyColumn {
+        Spacer(Modifier.height(16.dp))
+        LazyColumn(Modifier.weight(1f)) {
             items(favoritesViewModel.favorites) { p ->
-                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { detailProduct = p }, shape = RoundedCornerShape(12.dp), elevation = CardDefaults.cardElevation(2.dp)) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(p.imageUrl, null, Modifier.size(50.dp).clip(RoundedCornerShape(8.dp)))
-                        Text(p.name ?: "Produit", Modifier.padding(start = 12.dp).weight(1f), fontWeight = FontWeight.Bold)
+                        AsyncImage(p.imageUrl, null, Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)))
+                        Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                            Text(p.name ?: "Produit", fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text(p.brands ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        }
                         IconButton(onClick = { favoritesViewModel.removeFavorite(p) }) { Icon(Icons.Rounded.Favorite, null, tint = Color.Red) }
                     }
                 }
             }
         }
     }
+    detailProduct?.let { ProductDetailScreen(product = it, onDismiss = { detailProduct = null }, favoritesViewModel = favoritesViewModel, cartViewModel = cartViewModel) }
 }
 
 @Composable
@@ -577,7 +647,7 @@ fun ShoppingListSheet(onDismiss: () -> Unit) {
     Column(Modifier.padding(24.dp)) {
         Text("Mon Budget", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         LinearProgressIndicator(progress = { (cart.totalPrice / 100f).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape))
-        Text("${cart.totalPrice}€ / 100€")
+        Text("${String.format("%.2f", cart.totalPrice)}€ / 100€")
     }
 }
 
