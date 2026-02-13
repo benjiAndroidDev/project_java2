@@ -111,21 +111,17 @@ class CartViewModel : ViewModel() {
     val cartItems: List<CartItem> get() = _cartItems.value
     val itemCount: Int get() = _cartItems.value.sumOf { it.quantity }
     val totalPrice: Float get() = _cartItems.value.sumOf { (it.quantity * it.price).toDouble() }.toFloat()
+    
+    var userMaxBudget by mutableStateOf(100f)
 
-    fun addToCart(product: Product) {
+    fun addToCart(product: Product, initialPrice: Float = 0f) {
         val id = product.code ?: "${product.name}_${product.brands}"
         val existing = _cartItems.value.find { (it.product.code ?: "${it.product.name}_${it.product.brands}") == id }
         if (existing != null) {
             _cartItems.value = _cartItems.value.map { if ((it.product.code ?: "${it.product.name}_${it.product.brands}") == id) it.copy(quantity = it.quantity + 1) else it }
         } else {
-            _cartItems.value = _cartItems.value + CartItem(product, 1, getInitialPrice(product))
+            _cartItems.value = _cartItems.value + CartItem(product, 1, initialPrice)
         }
-    }
-    
-    private fun getInitialPrice(p: Product): Float {
-        val seed = p.code?.hashCode()?.toLong() ?: (p.name?.hashCode()?.toLong() ?: 123L)
-        val random = java.util.Random(seed)
-        return (random.nextInt(500) + 100) / 100f // Prix par défaut entre 1€ et 6€
     }
 
     fun updatePrice(product: Product, newPrice: Float) {
@@ -217,22 +213,20 @@ fun MainAppContent(authManager: AuthManager, cartViewModel: CartViewModel) {
                         }
                     }
                     IconButton(onClick = { showProfileSheet = true }) {
-                        Box(Modifier.size(38.dp).clip(CircleShape).background(if(user?.isVip == true) Color.Yellow else Color.LightGray), Alignment.Center) {
-                            Text(user?.name?.take(1) ?: "👤", fontWeight = FontWeight.Bold)
-                        }
+                        Icon(Icons.Rounded.Person, null, modifier = Modifier.size(32.dp))
                     }
                 }
             )
         },
         bottomBar = {
             NavigationBar {
-                Destination.values().forEachIndexed { index, dest ->
+                Destination.entries.forEachIndexed { index, dest ->
                     val isSelected = selectedItem == index
                     NavigationBarItem(
                         selected = isSelected,
                         onClick = { selectedItem = index; navController.navigate(dest.route) },
                         icon = { Icon(if (isSelected) dest.selectedIcon else dest.unselectedIcon, null) },
-                        label = { Text(dest.label) }
+                        label = null
                     )
                 }
             }
@@ -305,15 +299,15 @@ fun HomeScreen(favoritesViewModel: FavoritesViewModel, cartViewModel: CartViewMo
         // Enseignes
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 16.dp)) {
             items(listOf(
-                Triple("CARREFOUR", Color(0xFF0055A4), Color.White),
-                Triple("E.LECLERC", Color(0xFF009A44), Color.White),
-                Triple("AUCHAN", Color(0xFFE30613), Color.White),
-                Triple("INTERMARCHÉ", Color(0xFFE30613), Color.White),
-                Triple("LIDL", Color(0xFF0050AA), Color(0xFFFDD006))
-            )) { (name, bg, text) ->
-                Card(Modifier.size(110.dp, 65.dp), shape = RoundedCornerShape(12.dp)) {
-                    Box(Modifier.fillMaxSize().background(bg), contentAlignment = Alignment.Center) {
-                        Text(name, color = text, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                Triple("CARREFOUR", R.drawable.carrefour_0, Color.White),
+                Triple("E.LECLERC", R.drawable.e_leclerc_logo_svg, Color.White),
+                Triple("AUCHAN", R.drawable.logo_auchan_, Color.White),
+                Triple("INTERMARCHÉ", R.drawable.nouveau_logo_intermarche, Color.White),
+                Triple("LIDL", R.drawable.images__4_, Color.White)
+            )) { (name, logo, text) ->
+                Card(Modifier.size(110.dp, 65.dp), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Image(painter = painterResource(logo), contentDescription = name, modifier = Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit)
                     }
                 }
             }
@@ -547,7 +541,7 @@ fun CartSheet(cartViewModel: CartViewModel, favoritesViewModel: FavoritesViewMod
                         AsyncImage(item.product.imageUrl, null, Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)))
                         Column(Modifier.padding(start = 12.dp).weight(1f)) {
                             Text(item.product.name ?: "Produit", fontWeight = FontWeight.Bold, maxLines = 1)
-                            var priceInput by remember { mutableStateOf(item.price.toString()) }
+                            var priceInput by remember { mutableStateOf(if(item.price == 0f) "" else item.price.toString()) }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 BasicTextField(
                                     value = priceInput,
@@ -557,7 +551,8 @@ fun CartSheet(cartViewModel: CartViewModel, favoritesViewModel: FavoritesViewMod
                                     },
                                     textStyle = TextStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                    modifier = Modifier.width(60.dp)
+                                    modifier = Modifier.width(60.dp),
+                                    decorationBox = { innerTextField -> if (priceInput.isEmpty()) Text("0.00", color = Color.LightGray, style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp)) ; innerTextField() }
                                 )
                                 Text(" €", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             }
@@ -645,13 +640,40 @@ fun ShoppingListSheet(onDismiss: () -> Unit) {
 
 @Composable fun BudgetManagerSheet(onD: () -> Unit, cart: CartViewModel, context: Context) {
     Column(Modifier.padding(24.dp)) {
-        Text("Mon Budget", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        LinearProgressIndicator(progress = { (cart.totalPrice / 100f).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape))
-        Text("${String.format("%.2f", cart.totalPrice)}€ / 100€")
+        Text("Mon Budget Max", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+        var budgetInput by remember { mutableStateOf(cart.userMaxBudget.toString()) }
+        OutlinedTextField(
+            value = budgetInput,
+            onValueChange = { 
+                budgetInput = it
+                it.replace(",", ".").toFloatOrNull()?.let { newBudget -> cart.userMaxBudget = newBudget }
+            },
+            label = { Text("Fixer mon budget (€)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Spacer(Modifier.height(24.dp))
+        Text("Progression", fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { (cart.totalPrice / cart.userMaxBudget).coerceIn(0f, 1f) }, 
+            modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape),
+            color = if (cart.totalPrice > cart.userMaxBudget) Color.Red else Color(0xFF4CAF50)
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("${String.format("%.2f", cart.totalPrice)}€", fontWeight = FontWeight.Black)
+            Text("${cart.userMaxBudget}€", color = Color.Gray)
+        }
+        if (cart.totalPrice > cart.userMaxBudget) {
+            Text("⚠️ Budget dépassé !", color = Color.Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+        }
     }
 }
 
-@Composable fun VipScreen(auth: AuthManager) { Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Espace VIP") } }
+@Composable fun VipScreen(auth: AuthManager) { Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Espace Membre") } }
 @Composable fun SettingsScreen() { Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Paramètres") } }
 @Composable fun AuthScreen(auth: AuthManager) {
     var e by remember { mutableStateOf("") }; var p by remember { mutableStateOf("") }
@@ -667,7 +689,7 @@ fun ShoppingListSheet(onDismiss: () -> Unit) {
     Column(Modifier.padding(24.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(80.dp).clip(CircleShape).background(Color.LightGray), Alignment.Center) { Text(auth.getCurrentUser()?.name?.take(1) ?: "U", style = MaterialTheme.typography.headlineLarge) }
         Text(auth.getCurrentUser()?.name ?: "Utilisateur", Modifier.padding(top = 16.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Button(onClick = onVip, Modifier.fillMaxWidth().padding(top = 24.dp)) { Text("Devenir VIP") }
+        Button(onClick = onVip, Modifier.fillMaxWidth().padding(top = 24.dp)) { Text("Devenir membre") }
         TextButton(onClick = { auth.signOut() }) { Text("Se déconnecter", color = Color.Red) }
     }
 }

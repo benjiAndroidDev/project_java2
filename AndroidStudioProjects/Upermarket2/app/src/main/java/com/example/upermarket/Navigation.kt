@@ -3,6 +3,7 @@ package com.example.upermarket
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
 // Icônes modernes 2026 - Vraies icônes Material 3
@@ -15,37 +16,37 @@ enum class Destination(
 ) {
     HOME(
         "home", 
-        Icons.Filled.Home,  // Maison classique mais efficace
+        Icons.Rounded.Home, 
         Icons.Outlined.Home, 
         "Accueil", 
         "Accueil"
     ),
     SEARCH(
         "search", 
-        Icons.Filled.TravelExplore,  // Globe avec loupe - moderne
+        Icons.Rounded.TravelExplore, 
         Icons.Outlined.TravelExplore, 
         "Explorer", 
         "Explorer"
     ),
     SCAN(
         "scan", 
-        Icons.Filled.QrCodeScanner, 
+        Icons.Rounded.QrCodeScanner, 
         Icons.Outlined.QrCodeScanner, 
         "Scanner", 
         "Scanner"
     ),
     VIP(
         "vip", 
-        Icons.Filled.WorkspacePremium,  // Badge premium moderne
+        Icons.Rounded.WorkspacePremium, 
         Icons.Outlined.WorkspacePremium, 
-        "Premium", 
-        "Premium"
+        "Membre", 
+        "Devenir membre"
     ),
     SETTINGS(
         "settings", 
-        Icons.Filled.ManageAccounts,  // Gestion compte plus moderne
-        Icons.Outlined.ManageAccounts, 
-        "Compte", 
-        "Mon Compte"
+        Icons.Rounded.Settings, 
+        Icons.Outlined.Settings, 
+        "Paramètres", 
+        "Paramètres"
     )
 }
