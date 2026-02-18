@@ -20,6 +20,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    sourceSets {
+        getByName("main") {
+            manifest.srcFile("src/com.upermarket.app/AndroidManifest.xml")
+            java.srcDirs("src/com.upermarket.app/java")
+            res.srcDirs("src/com.upermarket.app/res")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -83,6 +91,7 @@ dependencies {
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation(libs.firebase.crashlytics.buildtools)
+    implementation(libs.androidx.foundation)
 
     // CameraX
     val camerax_version = "1.5.1"
@@ -90,7 +99,7 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$camerax_version")
     implementation("androidx.camera:camera-lifecycle:$camerax_version")
     implementation("androidx.camera:camera-view:$camerax_version")
-    
+
     // Guava (Fixes ListenableFuture conflict)
     implementation(libs.guava)
 
@@ -114,7 +123,7 @@ dependencies {
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)
-    
+
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
