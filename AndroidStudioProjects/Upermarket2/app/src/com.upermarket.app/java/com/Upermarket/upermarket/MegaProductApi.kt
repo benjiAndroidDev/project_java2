@@ -3,40 +3,68 @@ package com.Upermarket.upermarket
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.*
-import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import retrofit2.Retrofit
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
-import java.util.concurrent.TimeUnit
 
 class MegaProductSearchManager(private val context: Context) {
 
-    companion object {
-        private const val TAG = "MegaProductSearch"
-    }
-
     private val offApi = OpenFoodFactsApi.create()
 
-    suspend fun searchProducts(query: String): List<Product> = withContext(Dispatchers.IO) {
+    suspend fun searchProducts(query: String? = null, categoryTag: String? = null): List<Product> = withContext(Dispatchers.IO) {
         val results = mutableListOf<Product>()
+        val isMeatRayon = categoryTag?.contains("meats", ignoreCase = true) == true
+        val isCharcuterieRayon = categoryTag?.contains("charcuteries", ignoreCase = true) == true
 
         try {
-            // Recherche multi-pages en parallèle pour plus de rapidité et de résultats
-            val page1 = async { 
-                try { offApi.searchProducts(terms = query, pageSize = 50).products } 
-                catch (e: Exception) { emptyList<Product>() } 
+            coroutineScope {
+                val searches = mutableListOf<Deferred<SearchResponse>>()
+
+                // STRATÉGIE "MENU SUR MESURE" POUR LA BOUCHERIE / CHARCUTERIE
+                when {
+                    isMeatRayon -> {
+                        Log.d("MegaSearch", "Stratégie 'Menu du Boucher' activée")
+                        val meatTerms = listOf("poulet rôti", "steak haché", "escalope de dinde", "cuisse de poulet", "filet de poulet", "boeuf", "saucisse")
+                        meatTerms.forEach { term ->
+                            searches.add(async { try { offApi.searchProducts(terms = term, categoryTag = categoryTag, pageSize = 25) } catch(e:Exception) { SearchResponse() } })
+                        }
+                        // On ajoute une touche de jambon, mais de façon contrôlée
+                        searches.add(async { try { offApi.searchProducts(terms = "jambon", categoryTag = categoryTag, pageSize = 10) } catch(e:Exception) { SearchResponse() } })
+                    }
+
+                    isCharcuterieRayon -> {
+                        Log.d("MegaSearch", "Stratégie 'Charcuterie' activée")
+                        val charcuterieTerms = listOf("saucisson", "jambon cru", "rosette", "chorizo", "pâté de campagne")
+                        charcuterieTerms.forEach { term ->
+                            searches.add(async { try { offApi.searchProducts(terms = term, categoryTag = categoryTag, pageSize = 20) } catch(e:Exception) { SearchResponse() } })
+                        }
+                        searches.add(async { try { offApi.searchProducts(terms = "jambon blanc", categoryTag = categoryTag, pageSize = 15) } catch(e:Exception) { SearchResponse() } })
+                    }
+
+                    else -> {
+                        // Stratégie classique pour tous les autres rayons
+                        if (!categoryTag.isNullOrBlank()) {
+                            searches.add(async { try { offApi.searchProducts(categoryTag = categoryTag, pageSize = 50, page = 1) } catch(e:Exception) { SearchResponse() } })
+                            searches.add(async { try { offApi.searchProducts(categoryTag = categoryTag, pageSize = 50, page = 2) } catch(e:Exception) { SearchResponse() } })
+                        }
+                        if (!query.isNullOrBlank()) {
+                             searches.add(async { try { offApi.searchProducts(terms = query, pageSize = 50) } catch(e:Exception) { SearchResponse() } })
+                        }
+                    }
+                }
+
+                // On collecte tous les résultats
+                searches.forEach { deferred ->
+                    try {
+                        val response = deferred.await()
+                        response.products?.let { results.addAll(it) }
+                    } catch (e: Exception) { Log.e("MegaSearch", "Une sous-recherche a échoué", e) }
+                }
             }
-            
-            // On peut ajouter d'autres sources ici si nécessaire
-            
-            results.addAll(page1.await())
-            
-            Log.d(TAG, "Search for '$query' found ${results.size} products")
         } catch (e: Exception) {
-            Log.e(TAG, "Search failed", e)
+            Log.e("MegaSearch", "Erreur critique de recherche", e)
         }
 
-        results.distinctBy { it.code }
+        // Nettoyage final et mélange pour un affichage parfait
+        results.filter { !it.name.isNullOrBlank() && it.name != "Produit inconnu" }
+               .distinctBy { it.code ?: it.name }
+               .shuffled()
     }
 }

@@ -30,7 +30,7 @@ fun CartSheet(cartViewModel: CartViewModel, favoritesViewModel: FavoritesViewMod
         modifier = Modifier
             .fillMaxHeight(0.9f)
             .fillMaxWidth()
-            .background(Color(0xFFF8F9FA))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Header
         Row(
@@ -38,8 +38,13 @@ fun CartSheet(cartViewModel: CartViewModel, favoritesViewModel: FavoritesViewMod
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Mon Panier", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-            Text("${cartViewModel.itemCount} articles", color = Color.Gray)
+            Text(
+                "Mon Panier", 
+                style = MaterialTheme.typography.headlineMedium, 
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text("${cartViewModel.itemCount} articles", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
         }
 
         if (cartViewModel.cartItems.isEmpty()) {
@@ -64,29 +69,33 @@ fun CartSheet(cartViewModel: CartViewModel, favoritesViewModel: FavoritesViewMod
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(16.dp)
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("${String.format(Locale.FRANCE, "%.2f", cartViewModel.totalPrice)} €", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Color(0xFF4CAF50))
+                        Text("Total", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "${String.format(Locale.FRANCE, "%.2f", cartViewModel.totalPrice)} €", 
+                            style = MaterialTheme.typography.titleLarge, 
+                            fontWeight = FontWeight.ExtraBold, 
+                            color = Color(0xFF00C853)
+                        )
                     }
                     Spacer(Modifier.height(16.dp))
                     Button(
                         onClick = { /* Checkout */ },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text("Commander", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Commander", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
         }
     }
 
-    // Affichage de la fiche produit au clic
     if (selectedProduct != null) {
         ProductDetailSheet(
             product = selectedProduct!!,
@@ -111,7 +120,7 @@ fun CartProductCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Image(
@@ -120,25 +129,24 @@ fun CartProductCard(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF5F5F5))
+                    .background(MaterialTheme.colorScheme.surface)
                     .clickable(onClick = onProductClick),
                 contentScale = ContentScale.Fit
             )
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f).clickable(onClick = onProductClick)) {
-                Text(item.product.name ?: "Produit", fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(item.product.brands ?: "", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                Text("${String.format(Locale.FRANCE, "%.2f", item.price)} €", fontWeight = FontWeight.ExtraBold, color = Color(0xFF4CAF50))
+                Text(item.product.name ?: "Produit", fontWeight = FontWeight.Bold, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
+                Text(item.product.brands ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${String.format(Locale.FRANCE, "%.2f", item.price)} €", fontWeight = FontWeight.ExtraBold, color = Color(0xFF00C853))
             }
             
-            // Quantity Controls
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { cartViewModel.updateQuantity(item.product, item.quantity - 1) }) {
-                    Icon(Icons.Rounded.RemoveCircleOutline, null, tint = Color.LightGray)
+                    Icon(Icons.Rounded.RemoveCircleOutline, null, tint = MaterialTheme.colorScheme.primary)
                 }
-                Text("${item.quantity}", fontWeight = FontWeight.Bold)
+                Text("${item.quantity}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 IconButton(onClick = { cartViewModel.updateQuantity(item.product, item.quantity + 1) }) {
-                    Icon(Icons.Rounded.AddCircle, null, tint = Color.Black)
+                    Icon(Icons.Rounded.AddCircle, null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -149,9 +157,9 @@ fun CartProductCard(
 fun EmptyCartView() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Rounded.ShoppingCart, null, modifier = Modifier.size(80.dp), tint = Color.LightGray)
+            Icon(Icons.Rounded.ShoppingCart, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(16.dp))
-            Text("Votre panier est vide", color = Color.Gray)
+            Text("Votre panier est vide", color = MaterialTheme.colorScheme.outline)
         }
     }
 }

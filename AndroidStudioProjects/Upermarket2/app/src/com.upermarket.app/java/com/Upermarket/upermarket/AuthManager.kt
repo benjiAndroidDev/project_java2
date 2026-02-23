@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,10 +27,11 @@ import androidx.compose.ui.unit.dp
 fun ProfileScreen(
     authService: AuthManager,
     onNavigateToVip: () -> Unit,
+    onNavigateToFavorites: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val user = authService.getCurrentUser() ?: return
-    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -38,99 +40,76 @@ fun ProfileScreen(
             .padding(bottom = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // En-tête du profil avec dégradé VIP si nécessaire
+        // Avatar avec dégradé
         Box(
             modifier = Modifier
-                .size(100.dp)
+                .size(90.dp)
                 .clip(CircleShape)
                 .background(
                     if (user.isVip)
                         Brush.linearGradient(colors = listOf(Color(0xFFFFD700), Color(0xFFFFA500)))
                     else
-                        Brush.linearGradient(colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary))
+                        Brush.linearGradient(colors = listOf(Color(0xFF1A1A1A), Color(0xFF424242)))
                 ),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = user.name?.take(1)?.uppercase() ?: "?",
-                style = MaterialTheme.typography.displayMedium,
+                style = MaterialTheme.typography.displaySmall,
                 color = Color.White,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Black
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-
+        Text(
+            text = user.name ?: "Utilisateur",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
         Text(
             text = user.email,
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray
         )
 
-        if (user.isVip) {
-            Surface(
-                color = Color(0xFFFFD700).copy(alpha = 0.15f),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Rounded.Star, contentDescription = null, tint = Color(0xFFFFA500), modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "MEMBRE VIP",
-                        color = Color(0xFFFFA500),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Menu d'actions professionnelles
+        // Menu d'actions
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ProfileMenuItem(
-                icon = Icons.Rounded.Person,
-                title = "Informations personnelles",
-                subtitle = "Modifier votre profil et vos coordonnées"
-            ) {
-                // Action à implémenter
-            }
-
             ProfileMenuItem(
                 icon = Icons.Rounded.Favorite,
                 title = "Mes favoris",
                 subtitle = "Retrouvez vos produits préférés"
             ) {
-                onDismiss() // Pourrait naviguer vers un onglet dédié
+                onNavigateToFavorites()
+                onDismiss()
             }
 
             ProfileMenuItem(
                 icon = Icons.Rounded.Star,
-                title = "Programme VIP",
-                subtitle = if (user.isVip) "Gérer votre abonnement" else "Débloquer les avantages exclusifs",
-                color = if (user.isVip) Color(0xFFFFA500) else MaterialTheme.colorScheme.primary
+                title = "Espace Membre",
+                subtitle = if (user.isVip) "Gérer votre accès Premium" else "Débloquer les avantages",
+                color = if (user.isVip) Color(0xFFFFA500) else Color(0xFF00C853)
             ) {
                 onNavigateToVip()
+                onDismiss()
             }
 
             ProfileMenuItem(
                 icon = Icons.Rounded.Settings,
                 title = "Paramètres",
-                subtitle = "Notifications et préférences de l'application"
+                subtitle = "Notifications et préférences"
             ) {
-                // Action à implémenter
+                onNavigateToSettings()
+                onDismiss()
             }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Bouton de déconnexion
+        // Déconnexion
         Button(
             onClick = {
                 authService.signOut()
@@ -138,14 +117,14 @@ fun ProfileScreen(
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
-                contentColor = MaterialTheme.colorScheme.error
+                containerColor = Color(0xFFFFEBEE),
+                contentColor = Color(0xFFD32F2F)
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             elevation = null
         ) {
-            Icon(Icons.Rounded.ExitToApp, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null)
+            Spacer(modifier = Modifier.width(12.dp))
             Text("Se déconnecter", fontWeight = FontWeight.Bold)
         }
     }
@@ -156,14 +135,15 @@ fun ProfileMenuItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    color: Color = MaterialTheme.colorScheme.onSurface,
+    color: Color = Color.Black,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
@@ -172,19 +152,14 @@ fun ProfileMenuItem(
             color = color.copy(alpha = 0.1f)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+                Icon(icon, null, tint = color, modifier = Modifier.size(22.dp))
             }
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
         }
-        Icon(
-            Icons.Rounded.ChevronRight,
-            contentDescription = null,
-            tint = Color.Gray.copy(alpha = 0.3f),
-            modifier = Modifier.size(20.dp)
-        )
+        Icon(Icons.Rounded.ChevronRight, null, tint = Color.LightGray, modifier = Modifier.size(20.dp))
     }
 }

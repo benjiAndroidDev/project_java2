@@ -20,17 +20,24 @@ import androidx.compose.ui.platform.*
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.*
+import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import androidx.navigation.navArgument
 import com.Upermarket.upermarket.ui.theme.UpermarketTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 
 // ==================== AUTH SYSTEM ====================
 
 sealed class AuthState {
-    object Idle : AuthState(); object Loading : AuthState(); object NotAuthenticated : AuthState()
-    data class Authenticated(val user: User) : AuthState(); data class Error(val message: String) : AuthState()
+    object Idle : AuthState()
+    object Loading : AuthState()
+    object NotAuthenticated : AuthState()
+    data class Authenticated(val user: User) : AuthState()
+    data class Error(val message: String) : AuthState()
 }
 
 data class User(val uid: String = "", val name: String = "", val email: String = "", val isVip: Boolean = false) {
@@ -46,6 +53,14 @@ class AuthManager(context: Context) {
         try {
             if (FirebaseApp.getApps(context).isEmpty()) {
                 FirebaseApp.initializeApp(context)
+                try {
+                    val firebaseAppCheck = FirebaseAppCheck.getInstance()
+                    firebaseAppCheck.installAppCheckProviderFactory(
+                        PlayIntegrityAppCheckProviderFactory.getInstance()
+                    )
+                } catch (e: Exception) {
+                    Log.e("AuthManager", "AppCheck init skip: ${e.message}")
+                }
             }
             auth = FirebaseAuth.getInstance()
             db = FirebaseFirestore.getInstance()
@@ -79,8 +94,8 @@ class AuthManager(context: Context) {
 
     fun signIn(email: String, pass: String) {
         authState = AuthState.Loading
-        auth?.signInWithEmailAndPassword(email, pass)?.addOnFailureListener { 
-            authState = AuthState.Error(it.localizedMessage ?: "Erreur") 
+        auth?.signInWithEmailAndPassword(email, pass)?.addOnFailureListener {
+            authState = AuthState.Error(it.localizedMessage ?: "Erreur")
         }
     }
 
@@ -89,16 +104,16 @@ class AuthManager(context: Context) {
         auth?.createUserWithEmailAndPassword(email, pass)?.addOnSuccessListener { res ->
             val u = User(res.user!!.uid, name, email)
             db?.collection("users")?.document(u.uid)?.set(u)?.addOnSuccessListener { fetchUserData(u.uid) }
-        }?.addOnFailureListener { 
-            authState = AuthState.Error(it.localizedMessage ?: "Erreur") 
+        }?.addOnFailureListener {
+            authState = AuthState.Error(it.localizedMessage ?: "Erreur")
         }
     }
 
-    fun signOut() { 
+    fun signOut() {
         auth?.signOut()
-        authState = AuthState.NotAuthenticated 
+        authState = AuthState.NotAuthenticated
     }
-    
+
     fun getCurrentUser(): User? = (authState as? AuthState.Authenticated)?.user
 }
 
@@ -106,7 +121,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { UpermarketTheme { MainApp() } }
+        setContent { MainApp() }
     }
 }
 
@@ -114,19 +129,24 @@ class MainActivity : ComponentActivity() {
 fun MainApp() {
     val context = LocalContext.current.applicationContext
     val authManager = remember { AuthManager(context) }
+    var isDarkMode by remember { mutableStateOf(false) }
 
-    when (val state = authManager.authState) {
-        is AuthState.Idle, is AuthState.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
-        is AuthState.NotAuthenticated -> AuthScreen(authManager)
-        is AuthState.Authenticated -> {
-            val cartViewModel = remember(state.user.uid) { CartViewModel(context, state.user.uid) }
-            MainAppContent(authManager, cartViewModel)
-        }
-        is AuthState.Error -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                Text(state.message, color = Color.Red, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { authManager.signOut() }) { Text("Retour") }
+    UpermarketTheme(darkTheme = isDarkMode) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            when (val state = authManager.authState) {
+                is AuthState.Idle, is AuthState.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Color(0xFF00C853)) }
+                is AuthState.NotAuthenticated -> AuthScreen(authManager)
+                is AuthState.Authenticated -> {
+                    val cartViewModel = remember(state.user.uid) { CartViewModel(context, state.user.uid) }
+                    MainAppContent(authManager, cartViewModel, isDarkMode, onDarkModeChange = { isDarkMode = it })
+                }
+                is AuthState.Error -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                        Text(state.message, color = Color.Red, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { authManager.signOut() }) { Text("Retour") }
+                    }
+                }
             }
         }
     }
@@ -141,11 +161,12 @@ class CartViewModel(context: Context, private val uid: String) : ViewModel() {
     private val gson = Gson()
     private val _cartItems = mutableStateOf<List<CartItem>>(loadCart())
     val cartItems: List<CartItem> get() = _cartItems.value
-    val itemCount: Int get() = _cartItems.value.sumOf { it.quantity }
-    val totalPrice: Float get() = _cartItems.value.sumOf { (it.quantity * it.price).toDouble() }.toFloat()
+
+    val itemCount by derivedStateOf { _cartItems.value.sumOf { it.quantity } }
+    val totalPrice by derivedStateOf { _cartItems.value.sumOf { (it.quantity * it.price).toDouble() }.toFloat() }
 
     var userMaxBudget by mutableStateOf(prefs.getFloat("max_budget", 100f))
-    var selectedDrive by mutableStateOf(prefs.getString("selected_drive", "Sélectionner un Drive") ?: "Sélectionner un Drive")
+    var selectedDrive by mutableStateOf(prefs.getString("selected_drive", "Drive") ?: "Drive")
     var selectedDriveLogo by mutableIntStateOf(prefs.getInt("selected_drive_logo", 0))
 
     private fun saveCart() {
@@ -194,7 +215,6 @@ class CartViewModel(context: Context, private val uid: String) : ViewModel() {
     }
     fun clearCart() { _cartItems.value = emptyList(); saveCart() }
     fun updateBudget(b: Float) { userMaxBudget = b; saveCart() }
-    fun updateDrive(name: String, logo: Int) { selectedDrive = name; selectedDriveLogo = logo; saveCart() }
 }
 
 class FavoritesViewModel(private val mgr: FavoritesManager) : ViewModel() {
@@ -242,7 +262,12 @@ class ScanHistoryManager(context: Context, private val uid: String) {
 // ==================== MAIN UI CONTENT ====================
 
 @OptIn(ExperimentalMaterial3Api::class)@Composable
-fun MainAppContent(authManager: AuthManager, cartViewModel: CartViewModel) {
+fun MainAppContent(
+    authManager: AuthManager, 
+    cartViewModel: CartViewModel,
+    isDarkMode: Boolean,
+    onDarkModeChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val user = authManager.getCurrentUser()
     val favoritesManager = remember(user?.uid) { FavoritesManager(context, user?.uid ?: "default") }
@@ -265,7 +290,7 @@ fun MainAppContent(authManager: AuthManager, cartViewModel: CartViewModel) {
                 navigationIcon = {
                     Row {
                         IconButton(onClick = { showBudgetManagerSheet = true }) {
-                            Icon(Icons.Rounded.Tune, null, tint = Color(0xFF4CAF50))
+                            Icon(Icons.Rounded.Tune, null, tint = Color(0xFF00C853))
                         }
                         IconButton(onClick = { showShoppingListSheet = true }) {
                             Icon(Icons.Rounded.ChecklistRtl, null, tint = Color(0xFF1976D2))
@@ -281,11 +306,7 @@ fun MainAppContent(authManager: AuthManager, cartViewModel: CartViewModel) {
                             if (favoritesViewModel.favoriteCount > 0) Badge { Text(favoritesViewModel.favoriteCount.toString()) }
                         }) {
                             val isFav = favoritesViewModel.favoriteCount > 0
-                            Icon(
-                                if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                null,
-                                tint = if (isFav) Color.Red else Color.Black
-                            )
+                            Icon(if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, null, tint = if (isFav) Color.Red else MaterialTheme.colorScheme.onSurface)
                         }
                     }
                     IconButton(onClick = { showCartSheet = true }) {
@@ -302,17 +323,19 @@ fun MainAppContent(authManager: AuthManager, cartViewModel: CartViewModel) {
             )
         },
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                 Destination.entries.forEachIndexed { index, dest ->
                     val isSelected = selectedItem == index
                     NavigationBarItem(
                         selected = isSelected,
                         onClick = {
-                            selectedItem = index
-                            navController.navigate(dest.route) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            if (selectedItem != index) {
+                                selectedItem = index
+                                navController.navigate(dest.route) {
+                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         },
                         icon = { Icon(if (isSelected) dest.selectedIcon else dest.unselectedIcon, null) },
@@ -323,57 +346,67 @@ fun MainAppContent(authManager: AuthManager, cartViewModel: CartViewModel) {
         }
     ) { padding ->
         NavHost(navController, Destination.HOME.route, Modifier.padding(padding)) {
-            composable(Destination.HOME.route) { HomeScreen(favoritesViewModel, cartViewModel) }
+            composable(Destination.HOME.route) { HomeScreen(favoritesViewModel, cartViewModel, navController) }
+
+            composable(
+                route = "category_products/{name}/{tag}",
+                arguments = listOf(
+                    navArgument("name") { type = NavType.StringType },
+                    navArgument("tag") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val name = backStackEntry.arguments?.getString("name") ?: ""
+                val tag = backStackEntry.arguments?.getString("tag") ?: ""
+                CategoryProductsScreen(name, tag, favoritesViewModel, cartViewModel, navController)
+            }
+
             composable(Destination.SEARCH.route) { SearchScreen(favoritesViewModel, cartViewModel) }
             composable(Destination.SCAN.route) { ScanScreen(cartViewModel, favoritesViewModel, scanHistoryManager) }
             composable(Destination.VIP.route) { VipScreen(authManager) }
-            composable(Destination.SETTINGS.route) { SettingsScreen() }
+            composable(Destination.SETTINGS.route) { SettingsScreen(authManager, isDarkMode, onDarkModeChange) }
         }
 
         if (showCartSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showCartSheet = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = MaterialTheme.colorScheme.surface
             ) { CartSheet(cartViewModel, favoritesViewModel) }
         }
 
         if (showFavoritesSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showFavoritesSheet = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = MaterialTheme.colorScheme.surface
             ) { FavoritesSheet(favoritesViewModel, cartViewModel) }
         }
 
         if (showProfileSheet) {
-            ModalBottomSheet(onDismissRequest = { showProfileSheet = false }) {
+            ModalBottomSheet(onDismissRequest = { showProfileSheet = false }, containerColor = MaterialTheme.colorScheme.surface) {
                 ProfileScreen(
                     authService = authManager,
-                    onNavigateToVip = {
-                        showProfileSheet = false
-                        selectedItem = 3
-                        navController.navigate(Destination.VIP.route)
-                    },
+                    onNavigateToVip = { showProfileSheet = false; selectedItem = 3; navController.navigate(Destination.VIP.route) },
+                    onNavigateToFavorites = { showProfileSheet = false; showFavoritesSheet = true },
+                    onNavigateToSettings = { showProfileSheet = false; selectedItem = 4; navController.navigate(Destination.SETTINGS.route) },
                     onDismiss = { showProfileSheet = false }
                 )
             }
         }
 
         if (showShoppingListSheet) {
-            ModalBottomSheet(onDismissRequest = { showShoppingListSheet = false }) {
-                ShoppingListSheet { showShoppingListSheet = false }
-            }
+            ModalBottomSheet(onDismissRequest = { showShoppingListSheet = false }, containerColor = MaterialTheme.colorScheme.surface) { ShoppingListSheet { showShoppingListSheet = false } }
         }
 
         if (showBudgetManagerSheet) {
-            ModalBottomSheet(onDismissRequest = { showBudgetManagerSheet = false }) {
-                BudgetManagerSheet({ showBudgetManagerSheet = false }, cartViewModel, context)
-            }
+            ModalBottomSheet(onDismissRequest = { showBudgetManagerSheet = false }, containerColor = MaterialTheme.colorScheme.surface) { BudgetManagerSheet({ showBudgetManagerSheet = false }, cartViewModel, context) }
         }
 
         if (showHistorySheet) {
             ModalBottomSheet(
                 onDismissRequest = { showHistorySheet = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = MaterialTheme.colorScheme.surface
             ) { ScanHistorySheet(scanHistoryManager, favoritesViewModel, cartViewModel) }
         }
     }

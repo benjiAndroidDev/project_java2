@@ -7,16 +7,15 @@ plugins {
 }
 
 android {
-    namespace = "com.example.upermarket"
-    compileSdk = 36
+    namespace = "com.Upermarket.upermarket"
+    compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.upermarket"
+        applicationId = "com.Upermarket.upermarket"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
-
+        targetSdk = 35 
+        versionCode = 8 // NOUVELLE VERSION POUR LE PLAY STORE
+        versionName = "1.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -30,13 +29,17 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = false 
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // On laisse l'IDE gérer la signature manuelle via le menu "Build > Generate Signed Bundle"
+            signingConfig = null
         }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -58,6 +61,9 @@ android {
 }
 
 dependencies {
+    implementation("com.google.android.play:integrity:1.6.0")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-appcheck-ktx")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
@@ -76,57 +82,34 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.google.zxing:core:3.5.3")
     implementation("com.google.firebase:firebase-firestore-ktx")
-
-    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.ui.auth)
-
-    // ML Kit Barcode Scanning
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
-
-    // Credentials
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.androidx.foundation)
-
-    // CameraX
     val camerax_version = "1.5.1"
     implementation("androidx.camera:camera-core:$camerax_version")
     implementation("androidx.camera:camera-camera2:$camerax_version")
     implementation("androidx.camera:camera-lifecycle:$camerax_version")
     implementation("androidx.camera:camera-view:$camerax_version")
-
-    // Guava (Fixes ListenableFuture conflict)
     implementation(libs.guava)
-
-    // Google Play Services for Auth
     implementation("com.google.android.gms:play-services-auth:20.7.0")
-
-    // Networking & Serialization
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
-
-    // Image Loading
     implementation(libs.coil.compose)
-
-    // UI & Other
     implementation(libs.material)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
-
-    // DataStore
     implementation(libs.androidx.datastore.preferences)
-
-    // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

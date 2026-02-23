@@ -21,9 +21,7 @@ fun AppNavHost(
         startDestination = startDestination,
         modifier = modifier
     ) {
-        composable(Destination.HOME.route) {
-            HomeScreen(favoritesViewModel, cartViewModel)
-        }
+
         composable(Destination.SEARCH.route) {
             SearchScreen(favoritesViewModel, cartViewModel)
         }
@@ -34,7 +32,6 @@ fun AppNavHost(
             VipScreen(authManager)
         }
         composable(Destination.SETTINGS.route) {
-            SettingsScreen()
         }
     }
 }

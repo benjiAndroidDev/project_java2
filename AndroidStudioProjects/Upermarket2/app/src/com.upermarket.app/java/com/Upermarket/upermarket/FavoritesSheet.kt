@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,7 +21,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 
 @Composable
@@ -33,18 +31,19 @@ fun FavoritesSheet(favoritesViewModel: FavoritesViewModel, cartViewModel: CartVi
         modifier = Modifier
             .fillMaxHeight(0.9f)
             .fillMaxWidth()
-            .background(Color(0xFFF8F9FA))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Text(
             "Mes Coups de Cœur",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(24.dp)
         )
 
         if (favoritesViewModel.favorites.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aucun favori pour le moment", color = Color.Gray)
+                Text("Aucun favori pour le moment", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyVerticalGrid(
@@ -57,8 +56,7 @@ fun FavoritesSheet(favoritesViewModel: FavoritesViewModel, cartViewModel: CartVi
                 items(favoritesViewModel.favorites) { product ->
                     FavoriteProductCard(
                         product = product,
-                        onClick = { selectedProduct = product },
-                        onAddToCart = { /* Sera géré dans la fiche detail */ }
+                        onClick = { selectedProduct = product }
                     )
                 }
             }
@@ -80,37 +78,26 @@ fun FavoritesSheet(favoritesViewModel: FavoritesViewModel, cartViewModel: CartVi
 }
 
 @Composable
-fun FavoriteProductCard(product: Product, onClick: () -> Unit, onAddToCart: () -> Unit) {
+fun FavoriteProductCard(product: Product, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
         Column {
             Box {
                 Image(
                     painter = rememberAsyncImagePainter(product.imageUrl),
                     contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(24.dp)),
+                    modifier = Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(24.dp)).background(Color.White),
                     contentScale = ContentScale.Fit
                 )
                 Surface(
                     modifier = Modifier.padding(12.dp).align(Alignment.TopEnd),
                     shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.9f)
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
                 ) {
-                    Icon(
-                        Icons.Rounded.Favorite,
-                        null,
-                        tint = Color.Red,
-                        modifier = Modifier.padding(6.dp).size(18.dp)
-                    )
+                    Icon(Icons.Rounded.Favorite, null, tint = Color.Red, modifier = Modifier.padding(6.dp).size(18.dp))
                 }
             }
             
@@ -119,12 +106,13 @@ fun FavoriteProductCard(product: Product, onClick: () -> Unit, onAddToCart: () -
                     product.name ?: "Produit",
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     product.brands ?: "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
                 )
             }

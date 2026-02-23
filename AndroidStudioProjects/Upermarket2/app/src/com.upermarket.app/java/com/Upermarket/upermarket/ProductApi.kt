@@ -15,10 +15,10 @@ import java.util.concurrent.TimeUnit
 
 @Serializable
 data class SearchResponse(
-    val products: List<Product> = emptyList(),
-    val count: Int = 0,
-    val page: Int = 0,
-    @SerialName("page_size") val pageSize: Int = 0
+    val products: List<Product>? = emptyList(),
+    val count: Int? = null,
+    val page: Int? = null,
+    @SerialName("page_size") val pageSize: Int? = null
 )
 
 @Serializable
@@ -56,9 +56,13 @@ data class NutrientLevels(
 interface OpenFoodFactsApi {
     @GET("api/v2/search")
     suspend fun searchProducts(
-        @Query("search_terms") terms: String,
+        @Query("search_terms") terms: String? = null,
+        @Query("categories_tags") categoryTag: String? = null,
+        @Query("lc") lang: String = "fr",
+        @Query("cc") country: String = "fr",
         @Query("fields") fields: String = "code,product_name,image_front_url,brands,nutriscore_grade,ecoscore_grade,nova_group,quantity,categories,ingredients_text,additives_n,nutrient_levels",
-        @Query("page_size") pageSize: Int = 20
+        @Query("page_size") pageSize: Int = 50,
+        @Query("page") page: Int = 1
     ): SearchResponse
 
     @GET("api/v2/product/{barcode}")
@@ -72,9 +76,8 @@ interface OpenFoodFactsApi {
 
         fun create(): OpenFoodFactsApi {
             val client = OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
                 .build()
 
             return Retrofit.Builder()

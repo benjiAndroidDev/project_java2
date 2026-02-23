@@ -114,14 +114,13 @@ fun ProductDetailSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Bouton Ajouter au Panier - OPTIMISÉ POUR LA FLUIDITÉ
+            // Bouton Ajouter au Panier - COULEUR DE TEXTE CORRIGÉE (WHITE)
             Button(
                 onClick = { 
                     if (price != null && price > 0 && !isAdding) {
                         isAdding = true
                         scope.launch {
                             onAddToCart(price)
-                            // Le délai simule une action fluide, on pourra l'enlever après test
                             isAdding = false
                         }
                     }
@@ -134,15 +133,22 @@ fun ProductDetailSheet(
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF00C853),
-                    disabledContainerColor = Color(0xFFE0E0E0)
+                    contentColor = Color.White, // Texte en blanc pur pour une visibilité maximale
+                    disabledContainerColor = Color(0xFFE0E0E0),
+                    disabledContentColor = Color.Gray
                 )
             ) {
                 if (isAdding) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Rounded.AddShoppingCart, null)
+                    Icon(Icons.Rounded.AddShoppingCart, null, tint = Color.White)
                     Spacer(Modifier.width(12.dp))
-                    Text("AJOUTER AU PANIER", fontSize = 16.sp, fontWeight = FontWeight.Black)
+                    Text(
+                        "AJOUTER AU PANIER", 
+                        fontSize = 16.sp, 
+                        fontWeight = FontWeight.Black,
+                        color = Color.White // Forçage de la couleur blanche
+                    )
                 }
             }
             
